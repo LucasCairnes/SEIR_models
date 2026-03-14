@@ -1,13 +1,11 @@
 #include <string>
-#include <vector>
 #include <fstream>
-#include <iostream>
 #include <pybind11/pybind11.h>
+#include <pybind11/functional.h>
 
-int forward_euler(float (*function)(float, float), float y0, float step, float t_final, std::string filename) {
-    std::vector<float> times = {0};
-    std::vector<float> y_values = {y0};
+namespace py = pybind11;
 
+int forward_euler(std::function<float(float, float)>& function, float y0, float step, float t_final, const std::string& filename) {
     float t = 0;
     float y = y0;
 
@@ -32,5 +30,10 @@ int forward_euler(float (*function)(float, float), float y0, float step, float t
 
 PYBIND11_MODULE(ode_solver, m) {
     m.doc() = "A module for solving ODEs.";
-    m.def("forward_euler", &forward_euler, "A forward Euler ODE solver");
+    m.def("forward_euler", &forward_euler, "A forward Euler ODE solver",
+        py::arg("function"),
+        py::arg("y0"),
+        py::arg("step"),
+        py::arg("t_final"),
+        py::arg("filename"));
 }
