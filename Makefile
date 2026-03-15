@@ -1,9 +1,10 @@
-CXX = GCC
-CXXFLAGS = -O3 -Wall -shared -std=c++11 -shared -fPIC -fvisibility=hidden
-INCLUDES = $(shell python3 -m pybind11 --includes)
-LDFLAGS = -undefined dynamic_lookup
+CC = c++
+CFLAGS = -std=c++11 -O3 -Wall -undefined dynamic_lookup $(shell python3.13 -m pybind11 --includes) -shared -fPIC
 SRC = seir_forward_euler.cpp
-TARGET = seir_forward_euler$(shell python3-config --extension-suffix)
+OUT = seir_forward_euler$(shell python3.13-config --extension-suffix)
 
-all: 
-	$(CXX) $(CXXFLAGS) $(INCLUDES) $(SRC) -o $(TARGET) $(LDFLAGS)
+all:
+	$(CC) $(CFLAGS) $(SRC) -o $(OUT)
+
+clean:
+	rm -f $(OUT)
