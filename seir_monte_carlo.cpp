@@ -14,23 +14,30 @@ class System{
         int susceptible, exposed, infected, recovered;
         std::vector<std::vector<Agent *>> lattice;
         std::mt19937 rng {42};
-        std::uniform_int_distribution<int> unii;
+        std::uniform_int_distribution<int> creation_rng;
+        std::uniform_int_distribution<int> movement_rng;
         std::vector<Agent> agents;
         
         int get_random_index();
+        int get_random_movement();
         void populate_lattice(int agent_count, float s, float e, float i);
         int boundary_check(int coord);
         void move_agent(Agent &agent, int x_destination, int y_destination);
+        void run_sim(int MCS);
 
     public:
         System(int side_length, int agent_count, int MCS, float s, float e, float i, float r)
-            : side_length(side_length), agent_count(agent_count), MCS(MCS), unii(0, side_length - 1) {
+            : side_length(side_length), agent_count(agent_count), MCS(MCS), creation_rng(0, side_length - 1), movement_rng(-1, 1) {
             lattice.resize(side_length, std::vector<Agent*>(side_length, nullptr));
         }
 };
 
-int System::get_random_index(){
-    return unii(rng);
+int System::get_random_index() {
+    return creation_rng(rng);
+}
+
+int System::get_random_movement() {
+    return movement_rng(rng);
 }
 
 void System::populate_lattice(int agent_count, float s, float e, float i) {
@@ -73,5 +80,13 @@ void System::move_agent(Agent &agent, int x_destination, int y_destination) {
     
         agent.x_pos = x_destination;
         agent.y_pos = y_destination;
+    }
+}
+
+void System::run_sim(int MCS) {
+    for (int k = 0; k < MCS; k++) {
+        for (Agent& curr_agent : agents) {
+            move_agent(curr_agent, curr_agent.x_pos + get_random_movement(), curr_agent.y_pos + get_random_movement());
+        }
     }
 }
