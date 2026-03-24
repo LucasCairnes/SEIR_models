@@ -19,14 +19,14 @@ class System{
         std::mt19937 rng {42};
         std::uniform_int_distribution<int> creation_rng;
         std::uniform_int_distribution<int> movement_rng;
-        std::uniform_int_distribution<int> state_rng; // Initialising root engine and more specific rngs
+        std::uniform_real_distribution<float> prob_rng; // Initialising root engine and more specific rngs
         std::vector<int> lattice; // 1D faster than 2D. Integers instead of pointers so the agents vector can be shuffled to eliminate biases
         std::vector<Agent> agents;
         
         int get_index(int x_value, int y_value);
         int random_index();
         int random_movement();
-        int random_state();
+        int random_state(float probability);
         void populate_lattice(int agent_count, float s_0, float e_0, float i_0, float r_0);
         int boundary_check(int coord);
         void move_agent(Agent &agent, int x_destination, int y_destination);
@@ -35,7 +35,7 @@ class System{
 
     public:
         System(int length, int agent_count, int MCS, float s_0, float e_0, float i_0, float r_0, float beta, float sigma, float gamma, const std::string& filename)
-            : length(length), creation_rng(0, length - 1), movement_rng(-1, 1), state_rng(0, 1), beta(beta), sigma(sigma), gamma(gamma) { // Outlining the required inputs and storing the frequently used variables
+            : length(length), creation_rng(0, length - 1), movement_rng(-1, 1), prob_rng(0, 1), beta(beta), sigma(sigma), gamma(gamma) { // Outlining the required inputs and storing the frequently used variables
             lattice.resize(length*length, 0);
             populate_lattice(agent_count, s_0, e_0, i_0, r_0);
             run_sim(MCS, filename); // Calling the main functions to initialise and run the sim
@@ -50,8 +50,9 @@ int System::random_movement() {
     return movement_rng(rng);
 }
 
-int System::random_state() {
-    return state_rng(rng); // Functionalising the random elements of the sim. Making the state function to work for all states
+int System::random_state(float probability) {
+    if (prob_rng(rng) > probability) return 1;
+    return 0; // Functionalising the random elements of the sim. Making the state function to work for all states
 }
 
 int System::get_index(int x_value, int y_value) {
@@ -65,7 +66,7 @@ void System::populate_lattice(int agent_count, float s_0, float e_0, float i_0, 
     infected = static_cast<int>(std::round(agent_count * i_0));
     recovered = agent_count - susceptible - exposed - infected; // Using left over agents to avoid rounding errors
 
-    agents.reserve(agent_count); // JUSTIFY THIS
+    agents.reserve(agent_count); // Reserving the memory to prevent reallocation    
 
     for (int j = 0; j < agent_count; j++) {
         if (j < susceptible) state = 1;
@@ -125,7 +126,14 @@ void System::update_state(Agent &agent) {
         else if (current_state == 3) state_change = random_state(gamma);
     }
 
-    agent.state = current_state + state_change; // If the rng returns an update, the agents state will increase by 1, otherwise will remain the same
+    if (state_change == 1) { // Update state and counters if state updates
+        agent.state = current_state + 1;
+        lattice[get_index(agent_x, agent_y)] = current_state + 1;
+
+        if (current_state == 1) {susceptible--; exposed++;}
+        else if (current_state == 2) {exposed--; infected++;}
+        else if (current_state == 3) {infected--; recovered++;}
+    } 
 }
 
 void System::run_sim(int MCS, const std::string& filename) {
@@ -147,7 +155,7 @@ void System::run_sim(int MCS, const std::string& filename) {
             } // Update state due to neighbours
 
             step++;
-            outFile << time << "," << susceptible << "," << exposed << "," << infected << "," << recovered <<"\n";
+            outFile << step << "," << susceptible << "," << exposed << "," << infected << "," << recovered <<"\n";
         }
 
         outFile.close();
