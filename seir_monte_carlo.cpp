@@ -16,19 +16,21 @@ class System{
         int length;
         int susceptible, exposed, infected, recovered;
         float beta, sigma, gamma; // Storing variables which will be referenced by various functions
+
+        std::vector<int> lattice; // 1D faster than 2D. Integers instead of pointers so the agents vector can be shuffled to eliminate biases
+        std::vector<Agent> agents;
+
         std::mt19937 rng {42};
         std::uniform_int_distribution<int> creation_rng;
         std::uniform_int_distribution<int> movement_rng;
         std::uniform_real_distribution<float> prob_rng; // Initialising root engine and more specific rngs
-        std::vector<int> lattice; // 1D faster than 2D. Integers instead of pointers so the agents vector can be shuffled to eliminate biases
-        std::vector<Agent> agents;
         
         int get_index(int x_value, int y_value);
         int random_index();
         int random_movement();
         int random_state(float probability);
-        void populate_lattice(int agent_count, float s_0, float e_0, float i_0, float r_0);
         int boundary_check(int coord);
+        void populate_lattice(int agent_count, float s_0, float e_0, float i_0, float r_0);
         void move_agent(Agent &agent, int x_destination, int y_destination);
         void run_sim(int MCS, const std::string& filename);
         void update_state(Agent &agent); // Initialising all functions, ensuring to pass references to the agent objects
@@ -118,7 +120,10 @@ void System::update_state(Agent &agent) {
 
         if (infected_neighbours == 0) return;
 
-        state_change = random_state(beta * infected_neighbours);
+        int k = 0;
+        do {
+            state_change = random_state(beta);
+        } while (state_change == 0 && k < infected_neighbours );
     }
     
     else {
