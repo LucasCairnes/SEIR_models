@@ -4,6 +4,9 @@
 #include <algorithm>
 #include <fstream>
 #include <string>
+#include <pybind11/pybind11.h>
+
+namespace py = pybind11;
 
 struct Agent {
     int x_pos, y_pos, state;
@@ -181,4 +184,28 @@ void System::run_sim(int MCS, const std::string& filename) {
 
         outFile.close();
     }
+}
+
+PYBIND11_MODULE(seir_monte_carlo, m) {
+    m.doc() = "A monte carlo SEIR simulation";
+
+    py::class_<System>(m, "System")
+
+        .def(py::init<int, int, float, float, float, float, float, float, float>(),
+            py::arg("length"),
+            py::arg("agent_count"),
+            py::arg("s_0"),
+            py::arg("e_0"),
+            py::arg("i_0"),
+            py::arg("r_0"),
+            py::arg("beta"),
+            py::arg("sigma"),
+            py::arg("gamma")  
+        )
+
+        .def("run_sim",
+            &System::run_sim,
+            py::arg("MCS"),
+            py::arg("filename")
+        );
 }
