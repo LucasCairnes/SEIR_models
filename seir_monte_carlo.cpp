@@ -11,7 +11,7 @@ struct Agent {
         : x_pos(x), y_pos(y), state(s) {}
 }; // Using a struct since all variables are public
 
-class System{
+class System {
     private:
         int length;
         int susceptible, exposed, infected, recovered;
@@ -23,25 +23,26 @@ class System{
         std::mt19937 rng {42};
         std::uniform_int_distribution<int> creation_rng;
         std::uniform_int_distribution<int> movement_rng;
+        std::uniform_int_distribution<int> direction_rng;
         std::uniform_real_distribution<float> prob_rng; // Initialising root engine and more specific rngs
         
         int get_index(int x_value, int y_value);
         int random_index();
         int random_movement();
-        int random_state(float probability);
+        int random_direction();
+        bool random_state(float probability);
         int boundary_check(int coord);
         void populate_lattice(int agent_count, float s_0, float e_0, float i_0, float r_0);
-        void move_agent(Agent &agent, int x_destination, int y_destination);
-        void run_sim(int MCS, const std::string& filename);
-        void update_state(Agent &agent); // Initialising all functions, ensuring to pass references to the agent objects
+        void move_agent(Agent& agent, int x_destination, int y_destination);
+        void update_state(Agent& agent); // Initialising all functions, ensuring to pass references to the agent objects
 
     public:
-        System(int length, int agent_count, int MCS, float s_0, float e_0, float i_0, float r_0, float beta, float sigma, float gamma, const std::string& filename)
-            : length(length), creation_rng(0, length - 1), movement_rng(-1, 1), prob_rng(0, 1), beta(beta), sigma(sigma), gamma(gamma) { // Outlining the required inputs and storing the frequently used variables
+        System(int length, int agent_count, float s_0, float e_0, float i_0, float r_0, float beta, float sigma, float gamma)
+            : length(length), creation_rng(0, length - 1), movement_rng(-1, 1), direction_rng(0, 1), prob_rng(0, 1), beta(beta), sigma(sigma), gamma(gamma) { // Outlining the required inputs and storing the frequently used variables
             lattice.resize(length*length, 0);
-            populate_lattice(agent_count, s_0, e_0, i_0, r_0);
-            run_sim(MCS, filename); // Calling the main functions to initialise and run the sim
-        }
+            populate_lattice(agent_count, s_0, e_0, i_0, r_0); // Functions to initialise the system
+        };
+        void run_sim(int MCS, const std::string& filename);
 };
 
 int System::random_index() {
@@ -52,9 +53,12 @@ int System::random_movement() {
     return movement_rng(rng);
 }
 
-int System::random_state(float probability) {
-    if (prob_rng(rng) > probability) return 1;
-    return 0; // Functionalising the random elements of the sim. Making the state function to work for all states
+int System::random_direction() {
+    return direction_rng(rng);
+}
+
+bool System::random_state(float probability) {
+    return (prob_rng(rng) < probability);  // Functionalising the random elements of the sim. Making the random_state function work for an inputted probability
 }
 
 int System::get_index(int x_value, int y_value) {
@@ -88,10 +92,10 @@ void System::populate_lattice(int agent_count, float s_0, float e_0, float i_0, 
 int System::boundary_check(int coord){
     if (coord < 0) return length - 1;
     if (coord >= length) return 0;
-    return coord; // Loops index if exceeding boundary
+    return coord; // Function loops index if exceeding boundary
 }
 
-void System::move_agent(Agent &agent, int x_destination, int y_destination) {
+void System::move_agent(Agent& agent, int x_destination, int y_destination) {
     x_destination = boundary_check(x_destination);
     y_destination = boundary_check(y_destination);
 
@@ -104,13 +108,13 @@ void System::move_agent(Agent &agent, int x_destination, int y_destination) {
     }
 }
 
-void System::update_state(Agent &agent) {
+void System::update_state(Agent& agent) {
     int current_state = agent.state;
 
     if (current_state == 4) return;
     
-    int infected_neighbours = 0, state_change = 0;
-    int agent_x = agent.x_pos, agent_y = agent.y_pos;
+    bool state_change = false;
+    int infected_neighbours = 0, agent_x = agent.x_pos, agent_y = agent.y_pos;
 
     if (current_state == 1) {
         if (lattice[get_index(boundary_check(agent_x + 1), agent_y)] == 3) infected_neighbours++;
@@ -120,10 +124,7 @@ void System::update_state(Agent &agent) {
 
         if (infected_neighbours == 0) return;
 
-        int k = 0;
-        do {
-            state_change = random_state(beta);
-        } while (state_change == 0 && k < infected_neighbours );
+        state_change = random_state(1.0 - std::pow(1.0 - beta, infected_neighbours));
     }
     
     else {
@@ -131,7 +132,7 @@ void System::update_state(Agent &agent) {
         else if (current_state == 3) state_change = random_state(gamma);
     }
 
-    if (state_change == 1) { // Update state and counters if state updates
+    if (state_change) { // Update state and counters if state updates
         agent.state = current_state + 1;
         lattice[get_index(agent_x, agent_y)] = current_state + 1;
 
@@ -152,7 +153,22 @@ void System::run_sim(int MCS, const std::string& filename) {
         for (int k = 0; k < MCS; k++) {
             std::shuffle(agents.begin(), agents.end(), rng); // Shuffles to eliminate biases to the first agents in the vector
             for (Agent& curr_agent : agents) {
-                move_agent(curr_agent, curr_agent.x_pos + random_movement(), curr_agent.y_pos + random_movement());
+                int movement = random_movement();
+                if (movement == 0) continue;
+
+                int direction = random_direction();
+                int x_destination, y_destination;
+
+                if (direction == 1) {
+                    x_destination = curr_agent.x_pos + movement;
+                    y_destination = curr_agent.y_pos;
+                }
+                else if (direction == 0) {
+                    x_destination = curr_agent.x_pos;
+                    y_destination = curr_agent.y_pos + movement;
+                }
+
+                move_agent(curr_agent, x_destination, y_destination);
             } // Perform the random movements
 
             for (Agent& curr_agent : agents) {
