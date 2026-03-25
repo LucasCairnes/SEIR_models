@@ -191,7 +191,7 @@ PYBIND11_MODULE(seir_monte_carlo, m) {
 
     py::class_<System>(m, "System")
 
-        .def(py::init<int, int, float, float, float, float, float, float, float>(),
+        .def(py::init<int, int, float, float, float, float, float, float, float>(), // Defining constructor
             py::arg("length"),
             py::arg("agent_count"),
             py::arg("s_0"),
@@ -203,7 +203,7 @@ PYBIND11_MODULE(seir_monte_carlo, m) {
             py::arg("gamma")  
         )
 
-        .def("run_sim",
+        .def("run_sim", // Separate run function
             &System::run_sim,
             py::arg("MCS"),
             py::arg("filename")
