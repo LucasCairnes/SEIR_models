@@ -18,14 +18,14 @@ float dr_dt(float i, float gamma) {
     return gamma * i;
 } // The seir differential equations as easily callable functions
 
-int seir_forward_euler(float beta, float sigma, float gamma, float s_0, float e_0, float i_0, float r_0, float step, float t_final, const std::string& filename) {
+int seir_forward_euler(float beta, float sigma, float gamma, float s_0, float e_0, float i_0, float r_0, float step, float t_final, const std::string& seir_filename) {
     float t = 0.0, s = s_0, e = e_0, i = i_0, r = r_0;
 
-    std::ofstream outFile(filename);
+    std::ofstream seir_out(seir_filename);
 
-    if (outFile.is_open()) {
-        outFile << "time,susceptible,exposed,infected,recovered\n";
-        outFile << t << "," << s << "," << e << "," << i << "," << r <<"\n"; // Writing intial values
+    if (seir_out.is_open()) {
+        seir_out << "time,susceptible,exposed,infected,recovered\n";
+        seir_out << t << "," << s << "," << e << "," << i << "," << r <<"\n"; // Writing intial values
 
         while (t < t_final) {
             float ds = ds_dt(i, s, beta);
@@ -39,10 +39,10 @@ int seir_forward_euler(float beta, float sigma, float gamma, float s_0, float e_
             r += dr * step;
             
             t += step;
-            outFile << t << "," << s << "," << e << "," << i << "," << r <<"\n";
+            seir_out << t << "," << s << "," << e << "," << i << "," << r <<"\n";
         }
 
-        outFile.close();
+        seir_out.close();
     }
     
     return 0;
@@ -60,6 +60,6 @@ PYBIND11_MODULE(seir_forward_euler, m) {
         py::arg("r_0"),
         py::arg("step"),
         py::arg("t_final"),
-        py::arg("filename") // Defining pybind args to allow args to be easily using in python, e.g. beta = 1.0
+        py::arg("seir_filename") // Defining pybind args to allow args to be easily using in python, e.g. beta = 1.0
     );
 }

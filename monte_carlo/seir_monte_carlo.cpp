@@ -45,7 +45,7 @@ class System {
             lattice.resize(length*length, 0);
             populate_lattice(agent_count, s_0, e_0, i_0, r_0); // Functions to initialise the system
         };
-        void run_sim(int MCS, const std::string& filename);
+        void run_sim(int MCS, const std::string& seir_filename, const std::string& lattice_filename);
 };
 
 int System::random_index() {
@@ -145,45 +145,59 @@ void System::update_state(Agent& agent) {
     } 
 }
 
-void System::run_sim(int MCS, const std::string& filename) {
+void System::run_sim(int MCS, const std::string& seir_filename, const std::string& lattice_filename) {
     int step = 0;
-    std::ofstream outFile(filename);
+    std::ofstream seir_out(seir_filename);
+    std::ofstream lattice_out(lattice_filename);
 
-    if (outFile.is_open()) {
-        outFile << "Monte Carlo step,susceptible,exposed,infected,recovered\n";
-        outFile << step << "," << susceptible << "," << exposed << "," << infected << "," << recovered <<"\n";
+    seir_out << "Monte Carlo step,susceptible,exposed,infected,recovered\n";
+    seir_out << step << "," << susceptible << "," << exposed << "," << infected << "," << recovered <<"\n";
 
-        for (int k = 0; k < MCS; k++) {
-            std::shuffle(agents.begin(), agents.end(), rng); // Shuffles to eliminate biases to the first agents in the vector
-            for (Agent& curr_agent : agents) {
-                int movement = random_movement();
-                if (movement == 0) continue;
-
-                int direction = random_direction();
-                int x_destination, y_destination;
-
-                if (direction == 1) {
-                    x_destination = curr_agent.x_pos + movement;
-                    y_destination = curr_agent.y_pos;
-                }
-                else if (direction == 0) {
-                    x_destination = curr_agent.x_pos;
-                    y_destination = curr_agent.y_pos + movement;
-                }
-
-                move_agent(curr_agent, x_destination, y_destination);
-            } // Perform the random movements
-
-            for (Agent& curr_agent : agents) {
-                update_state(curr_agent);
-            } // Update state due to neighbours
-
-            step++;
-            outFile << step << "," << susceptible << "," << exposed << "," << infected << "," << recovered <<"\n";
-        }
-
-        outFile.close();
+    lattice_out << "Monte Carlo step,lattice\n";
+    lattice_out << step << ",";
+    for (int status : lattice) {
+        lattice_out << status << " ";
     }
+    lattice_out << "\n";
+
+
+    for (int k = 0; k < MCS; k++) {
+        std::shuffle(agents.begin(), agents.end(), rng); // Shuffles to eliminate biases to the first agents in the vector
+        for (Agent& curr_agent : agents) {
+            int movement = random_movement();
+            if (movement == 0) continue;
+
+            int direction = random_direction();
+            int x_destination, y_destination;
+
+            if (direction == 1) {
+                x_destination = curr_agent.x_pos + movement;
+                y_destination = curr_agent.y_pos;
+            }
+            else if (direction == 0) {
+                x_destination = curr_agent.x_pos;
+                y_destination = curr_agent.y_pos + movement;
+            }
+
+            move_agent(curr_agent, x_destination, y_destination);
+        } // Perform the random movements
+
+        for (Agent& curr_agent : agents) {
+            update_state(curr_agent);
+        } // Update state due to neighbours
+
+        step++;
+        seir_out << step << "," << susceptible << "," << exposed << "," << infected << "," << recovered <<"\n";
+
+        lattice_out << step << ",";
+        for (int status : lattice) {
+            lattice_out << status << " ";
+        }
+        lattice_out << "\n";
+    }
+
+    seir_out.close();
+    lattice_out.close();
 }
 
 PYBIND11_MODULE(seir_monte_carlo, m) {
@@ -206,6 +220,7 @@ PYBIND11_MODULE(seir_monte_carlo, m) {
         .def("run_sim", // Separate run function
             &System::run_sim,
             py::arg("MCS"),
-            py::arg("filename")
+            py::arg("seir_filename"),
+            py::arg("lattice_filename")
         );
 }
