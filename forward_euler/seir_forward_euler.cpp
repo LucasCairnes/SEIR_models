@@ -1,5 +1,6 @@
 #include <string>
 #include <fstream>
+#include <vector>
 #include <pybind11/pybind11.h>
 #include <pybind11/functional.h>
 
@@ -20,31 +21,43 @@ float dr_dt(float i, float gamma) {
 
 int seir_forward_euler(float beta, float sigma, float gamma, float s_0, float e_0, float i_0, float r_0, float step, float t_final, const std::string& seir_filename) {
     float t = 0.0, s = s_0, e = e_0, i = i_0, r = r_0;
+    std::vector<float> s_values, e_values, i_values, r_values, t_values;
+    
+    s_values.emplace_back(s);  // Inputting initial values 
+    e_values.emplace_back(e);
+    i_values.emplace_back(i);   
+    r_values.emplace_back(r);
+    t_values.emplace_back(t);
+
+    while (t < t_final) {
+        float ds = ds_dt(i, s, beta);
+        float de = de_dt(i, s, beta, sigma, e);
+        float di = di_dt(i, sigma, e, gamma);
+        float dr = dr_dt(i, gamma); // Ensuring to pass the seir variables in before updating them
+
+        s += ds * step;
+        e += de * step;
+        i += di * step;
+        r += dr * step;
+        
+        s_values.emplace_back(s);
+        e_values.emplace_back(e);
+        i_values.emplace_back(i);   
+        r_values.emplace_back(r);
+        t_values.emplace_back(t);
+
+        t += step;
+    }
 
     std::ofstream seir_out(seir_filename);
 
-    if (seir_out.is_open()) {
-        seir_out << "time,susceptible,exposed,infected,recovered\n";
-        seir_out << t << "," << s << "," << e << "," << i << "," << r <<"\n"; // Writing intial values
+    seir_out << "time,susceptible,exposed,infected,recovered\n";
 
-        while (t < t_final) {
-            float ds = ds_dt(i, s, beta);
-            float de = de_dt(i, s, beta, sigma, e);
-            float di = di_dt(i, sigma, e, gamma);
-            float dr = dr_dt(i, gamma); // Ensuring to pass the seir variables in before updating them
-
-            s += ds * step;
-            e += de * step;
-            i += di * step;
-            r += dr * step;
-            
-            t += step;
-            seir_out << t << "," << s << "," << e << "," << i << "," << r <<"\n";
-        }
-
-        seir_out.close();
+    for (int i = 0; i < t_values.size(); i++) {
+        seir_out << t_values[i] << "," << s_values[i] << "," << e_values[i] << "," << i_values[i] << "," << r_values[i] << "\n";
     }
-    
+    seir_out.close();
+
     return 0;
 }
 
