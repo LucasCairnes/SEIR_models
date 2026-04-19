@@ -2,6 +2,7 @@
 #include <fstream>
 #include <vector>
 #include <stdexcept>
+#include <cmath>
 #include <pybind11/pybind11.h>
 
 namespace py = pybind11; // To condense the pybind args
