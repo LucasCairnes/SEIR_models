@@ -152,7 +152,13 @@ void System::run_sim(int MCS, const std::string& seir_filename, const std::strin
     std::vector<float> s_values, e_values, i_values, r_values;
     std::vector<int> steps;
     std::vector<std::string> lattices;
-    
+
+    s_values.reserve(MCS + 1); // Reserving so no values get over wrtten
+    e_values.reserve(MCS + 1);
+    i_values.reserve(MCS + 1);
+    r_values.reserve(MCS + 1);
+    steps.reserve(MCS + 1);
+
     s_values.emplace_back(s);  // Inputting initial values 
     e_values.emplace_back(e);
     i_values.emplace_back(i);   
