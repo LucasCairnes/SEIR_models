@@ -58,7 +58,7 @@ int seir_forward_euler(float beta, float sigma, float gamma, float s_0, float e_
 
     std::ofstream seir_out(seir_filename);
 
-    seir_out << "time,s,e,i,r\n";
+    seir_out << "time,susceptible,exposed,infected,recovered\n";
 
     for (size_t i = 0; i < t_values.size(); i++) {
         seir_out << t_values[i] << "," << s_values[i] << "," << e_values[i] << "," << i_values[i] << "," << r_values[i] << "\n";
