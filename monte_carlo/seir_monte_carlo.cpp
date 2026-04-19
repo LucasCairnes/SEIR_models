@@ -3,6 +3,7 @@
 #include <cmath>
 #include <algorithm>
 #include <fstream>
+#include <sstream>
 #include <string>
 #include <pybind11/pybind11.h>
 
@@ -17,7 +18,7 @@ struct Agent {
 class System {
     private:
         int length;
-        int susceptible, exposed, infected, recovered;
+        int s, e, i, r;
         float beta, sigma, gamma; // Storing variables which will be referenced by various functions
 
         std::vector<int> lattice; // 1D faster than 2D. Integers instead of pointers so the agents vector can be shuffled to eliminate biases
@@ -70,17 +71,17 @@ int System::get_index(int x_value, int y_value) {
 
 void System::populate_lattice(int agent_count, float s_0, float e_0, float i_0, float r_0) {
     int x_val, y_val, state;
-    susceptible = static_cast<int>(std::round(agent_count * s_0));
-    exposed = static_cast<int>(std::round(agent_count * e_0));
-    infected = static_cast<int>(std::round(agent_count * i_0));
-    recovered = agent_count - susceptible - exposed - infected; // Using left over agents to avoid rounding errors
+    s = static_cast<int>(std::round(agent_count * s_0));
+    e = static_cast<int>(std::round(agent_count * e_0));
+    i = static_cast<int>(std::round(agent_count * i_0));
+    r = agent_count - s - e - i; // Using left over agents to avoid rounding errors
 
     agents.reserve(agent_count); // Reserving the memory to prevent reallocation    
 
     for (int j = 0; j < agent_count; j++) {
-        if (j < susceptible) state = 1;
-        else if (j < susceptible + exposed) state = 2;
-        else if (j < susceptible + exposed + infected) state = 3;
+        if (j < s) state = 1;
+        else if (j < s + e) state = 2;
+        else if (j < s + e + i) state = 3;
         else state = 4;
         do {
             x_val = random_index();
@@ -117,17 +118,17 @@ void System::update_state(Agent& agent) {
     if (current_state == 4) return;
     
     bool state_change = false;
-    int infected_neighbours = 0, agent_x = agent.x_pos, agent_y = agent.y_pos;
+    int i_neighbours = 0, agent_x = agent.x_pos, agent_y = agent.y_pos;
 
     if (current_state == 1) {
-        if (lattice[get_index(boundary_check(agent_x + 1), agent_y)] == 3) infected_neighbours++;
-        if (lattice[get_index(boundary_check(agent_x -1), agent_y)] == 3) infected_neighbours++;
-        if (lattice[get_index(boundary_check(agent_x), agent_y + 1)] == 3) infected_neighbours++;
-        if (lattice[get_index(boundary_check(agent_x), agent_y - 1)] == 3) infected_neighbours++; // Counts neighbours
+        if (lattice[get_index(boundary_check(agent_x + 1), agent_y)] == 3) i_neighbours++;
+        if (lattice[get_index(boundary_check(agent_x -1), agent_y)] == 3) i_neighbours++;
+        if (lattice[get_index(boundary_check(agent_x), agent_y + 1)] == 3) i_neighbours++;
+        if (lattice[get_index(boundary_check(agent_x), agent_y - 1)] == 3) i_neighbours++; // Counts neighbours
 
-        if (infected_neighbours == 0) return;
+        if (i_neighbours == 0) return;
 
-        state_change = random_state(1.0 - std::pow(1.0 - beta, infected_neighbours));
+        state_change = random_state(1.0 - std::pow(1.0 - beta, i_neighbours));
     }
     
     else {
@@ -139,27 +140,31 @@ void System::update_state(Agent& agent) {
         agent.state = current_state + 1;
         lattice[get_index(agent_x, agent_y)] = current_state + 1;
 
-        if (current_state == 1) {susceptible--; exposed++;}
-        else if (current_state == 2) {exposed--; infected++;}
-        else if (current_state == 3) {infected--; recovered++;}
+        if (current_state == 1) {s--; e++;}
+        else if (current_state == 2) {e--; i++;}
+        else if (current_state == 3) {i--; r++;}
     } 
 }
 
 void System::run_sim(int MCS, const std::string& seir_filename, const std::string& lattice_filename) {
     int step = 0;
-    std::ofstream seir_out(seir_filename);
-    std::ofstream lattice_out(lattice_filename);
 
-    seir_out << "Monte Carlo step,susceptible,exposed,infected,recovered\n";
-    seir_out << step << "," << susceptible << "," << exposed << "," << infected << "," << recovered <<"\n";
+    std::vector<float> s_values, e_values, i_values, r_values;
+    std::vector<int> steps;
+    std::vector<std::string> lattices;
+    
+    s_values.emplace_back(s);  // Inputting initial values 
+    e_values.emplace_back(e);
+    i_values.emplace_back(i);   
+    r_values.emplace_back(r);
+    steps.emplace_back(step);
 
-    lattice_out << "Monte Carlo step,lattice\n";
-    lattice_out << step << ",";
+    std::ostringstream lattice_snapshot;
+    lattice_snapshot << step << ",";
     for (int status : lattice) {
-        lattice_out << status << " ";
+        lattice_snapshot << status << " ";
     }
-    lattice_out << "\n";
-
+    lattices.emplace_back(lattice_snapshot.str());
 
     for (int k = 0; k < MCS; k++) {
         std::shuffle(agents.begin(), agents.end(), rng); // Shuffles to eliminate biases to the first agents in the vector
@@ -187,16 +192,33 @@ void System::run_sim(int MCS, const std::string& seir_filename, const std::strin
         } // Update state due to neighbours
 
         step++;
-        seir_out << step << "," << susceptible << "," << exposed << "," << infected << "," << recovered <<"\n";
 
-        lattice_out << step << ",";
+        s_values.emplace_back(s);
+        e_values.emplace_back(e);
+        i_values.emplace_back(i);   
+        r_values.emplace_back(r);
+        steps.emplace_back(step);
+
+        std::ostringstream lattice_snapshot;
+        lattice_snapshot << step << ",";
         for (int status : lattice) {
-            lattice_out << status << " ";
+            lattice_snapshot << status << " ";
         }
-        lattice_out << "\n";
+        lattices.emplace_back(lattice_snapshot.str());
     }
 
+    std::ofstream seir_out(seir_filename);
+    seir_out << "Monte Carlo step,susceptible,exposed,infected,recovered\n";
+    for (int i = 0; i < steps.size(); i++) {
+        seir_out << steps[i] << "," << s_values[i] << "," << e_values[i] << "," << i_values[i] << "," << r_values[i] << "\n";
+    }
     seir_out.close();
+
+    std::ofstream lattice_out(lattice_filename);
+    lattice_out << "Monte Carlo step,lattice\n";
+    for (const auto& row : lattices) {
+        lattice_out << row << "\n";
+    }
     lattice_out.close();
 }
 
