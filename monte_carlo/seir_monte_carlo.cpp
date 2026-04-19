@@ -83,10 +83,9 @@ int System::get_index(int x_value, int y_value) {
 
 void System::populate_lattice(int agent_count, float s_0, float e_0, float i_0, float r_0) {
     int x_val, y_val, state;
-
-    s = static_cast<int>(std::round(agent_count * s_0));
-    e = static_cast<int>(std::round(agent_count * e_0));
-    i = static_cast<int>(std::round(agent_count * i_0));
+    s = static_cast<int>(std::floor(agent_count * s_0));
+    e = static_cast<int>(std::floor(agent_count * e_0));
+    i = static_cast<int>(std::floor(agent_count * i_0));
     r = agent_count - s - e - i; // Using left over agents to avoid rounding errors
 
     agents.reserve(agent_count); // Reserving the memory to prevent reallocation    
@@ -169,7 +168,13 @@ void System::run_sim(int MCS, const std::string& seir_filename, const std::strin
     std::vector<float> s_values, e_values, i_values, r_values;
     std::vector<int> steps;
     std::vector<std::string> lattices;
-    
+
+    s_values.reserve(MCS + 1); // Reserving so no values get over wrtten
+    e_values.reserve(MCS + 1);
+    i_values.reserve(MCS + 1);
+    r_values.reserve(MCS + 1);
+    steps.reserve(MCS + 1);
+
     s_values.emplace_back(s);  // Inputting initial values 
     e_values.emplace_back(e);
     i_values.emplace_back(i);   
