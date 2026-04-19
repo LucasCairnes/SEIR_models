@@ -5,6 +5,7 @@
 #include <fstream>
 #include <sstream>
 #include <string>
+#include <stdexcept>
 #include <pybind11/pybind11.h>
 
 namespace py = pybind11;
@@ -43,6 +44,17 @@ class System {
     public:
         System(int length, int agent_count, float s_0, float e_0, float i_0, float r_0, float beta, float sigma, float gamma)
             : length(length), creation_rng(0, length - 1), movement_rng(-1, 1), direction_rng(0, 1), prob_rng(0, 1), beta(beta), sigma(sigma), gamma(gamma) { // Outlining the required inputs and storing the frequently used variables
+            
+            if (std::abs(s_0 + e_0 + i_0 + r_0 - 1.0) > 0.001) {
+                throw std::invalid_argument("SEIR values must add to 1.0");
+            }
+            if (agent_count > length * length) {
+                throw std::invalid_argument("Agent count must not exceed the number of tiles.");
+            }
+            if (length < 0) {
+                throw std::invalid_argument("Length must be a positive integer");
+            }
+            
             lattice.resize(length*length, 0);
             populate_lattice(agent_count, s_0, e_0, i_0, r_0); // Functions to initialise the system
         };
@@ -71,6 +83,7 @@ int System::get_index(int x_value, int y_value) {
 
 void System::populate_lattice(int agent_count, float s_0, float e_0, float i_0, float r_0) {
     int x_val, y_val, state;
+
     s = static_cast<int>(std::round(agent_count * s_0));
     e = static_cast<int>(std::round(agent_count * e_0));
     i = static_cast<int>(std::round(agent_count * i_0));
@@ -148,6 +161,10 @@ void System::update_state(Agent& agent) {
 
 void System::run_sim(int MCS, const std::string& seir_filename, const std::string& lattice_filename) {
     int step = 0;
+
+    if (MCS < 0) {
+        throw std::invalid_argument("MCS must be a positive integer");
+    }
 
     std::vector<float> s_values, e_values, i_values, r_values;
     std::vector<int> steps;

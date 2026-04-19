@@ -1,8 +1,8 @@
 #include <string>
 #include <fstream>
 #include <vector>
+#include <stdexcept>
 #include <pybind11/pybind11.h>
-#include <pybind11/functional.h>
 
 namespace py = pybind11; // To condense the pybind args
 
@@ -21,8 +21,15 @@ float dr_dt(float i, float gamma) {
 
 int seir_forward_euler(float beta, float sigma, float gamma, float s_0, float e_0, float i_0, float r_0, float step, float t_final, const std::string& seir_filename) {
     float t = 0.0, s = s_0, e = e_0, i = i_0, r = r_0;
+    if (std::abs(s_0 + e_0 + i_0 + r_0 - 1.0) > 0.001) {
+        throw std::invalid_argument("SEIR values must add to 1.0");
+    }
+    if (step > t_final) {
+        throw std::invalid_argument("Step must be smaller than t_final.");
+    }
+
     std::vector<float> s_values, e_values, i_values, r_values, t_values;
-    
+
     s_values.emplace_back(s);  // Inputting initial values 
     e_values.emplace_back(e);
     i_values.emplace_back(i);   
@@ -39,21 +46,20 @@ int seir_forward_euler(float beta, float sigma, float gamma, float s_0, float e_
         e += de * step;
         i += di * step;
         r += dr * step;
-        
+        t += step;
+
         s_values.emplace_back(s);
         e_values.emplace_back(e);
         i_values.emplace_back(i);   
         r_values.emplace_back(r);
         t_values.emplace_back(t);
-
-        t += step;
     }
 
     std::ofstream seir_out(seir_filename);
 
     seir_out << "time,s,e,i,r\n";
 
-    for (int i = 0; i < t_values.size(); i++) {
+    for (size_t i = 0; i < t_values.size(); i++) {
         seir_out << t_values[i] << "," << s_values[i] << "," << e_values[i] << "," << i_values[i] << "," << r_values[i] << "\n";
     }
     seir_out.close();
