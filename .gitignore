@@ -1,1 +1,5 @@
 *.csv
+*.svg
+*.pdf
+*.so
+saved_plots
